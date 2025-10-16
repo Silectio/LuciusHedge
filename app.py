@@ -571,12 +571,12 @@ def main():
         correct_password is None or password == correct_password
     )
     if not auth_ok:
-        st.sidebar.info(
-            "Les sections Admin sont protégées. La vue 'Performance modèles' reste publique."
-        )
+        pages_list = ["Performance modèles", "Gain"]
+    else:
+        pages_list = ["Performance modèles", "Gain", "Investisseurs", "Stakes"]
 
     page = st.sidebar.radio(
-        "Navigation", ["Investisseurs", "Stakes", "Performance modèles", "Gain"]
+        "Navigation", options=pages_list, index=0, key="main_nav_radio"
     )
     if page == "Performance modèles":
         ui_models_performance()
