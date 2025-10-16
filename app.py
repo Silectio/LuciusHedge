@@ -878,7 +878,7 @@ def ui_admin_global():
 
 
 def main():
-    st.set_page_config(page_title="Lucius Hedge", layout="wide")
+    st.set_page_config(page_title="Lucius Hedge", page_icon="💹", layout="wide")
     st.title("Lucius Hedge: Suivi des performances")
 
     # Auth facultative: protège uniquement les sections Admin (Investisseurs/Stakes)
@@ -901,8 +901,11 @@ def main():
             "Stakes",
         ]
 
-    page = st.sidebar.radio(
-        "Navigation", options=pages_list, index=0, key="main_nav_radio"
+    page = st.sidebar.selectbox(
+        "Page",
+        options=pages_list,
+        index=0,
+        key="main_nav_select",
     )
     if page == "Performance modèles":
         ui_models_performance()
