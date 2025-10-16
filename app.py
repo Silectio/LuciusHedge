@@ -436,10 +436,19 @@ def ui_gain():
         st.dataframe(
             merged_tbl[["date", "stake", "payout_effectif", "gain"]], width="stretch"
         )
-        # Graphe: gain cumulé
+        # Graphe: gain cumulé (+ un point la veille à 0 pour visualiser le saut initial)
         merged_tbl["gain_cum"] = merged_tbl["gain"].cumsum()
+        plot_df = merged_tbl[["date", "gain_cum"]].copy()
+        try:
+            start_dt = pd.to_datetime(plot_df["date"].min()) - pd.Timedelta(days=1)
+            pre_row = pd.DataFrame({"date": [start_dt.date()], "gain_cum": [0.0]})
+            plot_df = pd.concat([pre_row, plot_df], ignore_index=True).sort_values(
+                by="date"
+            )
+        except Exception:
+            pass
         st.subheader("Gain cumulé")
-        st.line_chart(merged_tbl.set_index("date")["gain_cum"])
+        st.line_chart(plot_df.set_index("date")["gain_cum"])
         try:
             st.caption(
                 f"Période: {merged_tbl['date'].min()} → {merged_tbl['date'].max()} • {len(merged_tbl)} jours (1 point/jour)"
@@ -532,10 +541,19 @@ def ui_gain():
         st.dataframe(
             merged_tbl[["date", "stake", "payout_effectif", "gain"]], width="stretch"
         )
-        # Graphe: gain cumulé agrégé
+        # Graphe: gain cumulé agrégé (+ un point la veille à 0)
         merged_tbl["gain_cum"] = merged_tbl["gain"].cumsum()
+        plot_df = merged_tbl[["date", "gain_cum"]].copy()
+        try:
+            start_dt = pd.to_datetime(plot_df["date"].min()) - pd.Timedelta(days=1)
+            pre_row = pd.DataFrame({"date": [start_dt.date()], "gain_cum": [0.0]})
+            plot_df = pd.concat([pre_row, plot_df], ignore_index=True).sort_values(
+                by="date"
+            )
+        except Exception:
+            pass
         st.subheader("Gain cumulé (tous modèles)")
-        st.line_chart(merged_tbl.set_index("date")["gain_cum"])
+        st.line_chart(plot_df.set_index("date")["gain_cum"])
         try:
             st.caption(
                 f"Période: {merged_tbl['date'].min()} → {merged_tbl['date'].max()} • {len(merged_tbl)} jours (1 point/jour)"
