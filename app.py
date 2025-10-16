@@ -799,8 +799,8 @@ def ui_admin_global():
 
 
 def main():
-    st.set_page_config(page_title="Gestion Investors & Stakes", layout="wide")
-    st.title("Gestion de la base: Investisseurs et Stakes")
+    st.set_page_config(page_title="Lucius Hedge", layout="wide")
+    st.title("Lucius Hedge: Suivi des performances")
 
     # Auth facultative: protège uniquement les sections Admin (Investisseurs/Stakes)
     password = st.sidebar.text_input("Mot de passe (Admin)", type="password")
