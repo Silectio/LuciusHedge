@@ -427,11 +427,22 @@ def ui_gain():
         if gains is None or gains.empty:
             st.info("Aucun gain calculable pour cette période.")
             return
-        st.subheader("Gain quotidien (payout × stake)")
-        st.line_chart(gains.set_index("date")["gain"])
+        # Table par round (date): stake, payout effectif (= gain/stake), gain
+        merged_tbl = ts.merge(gains, on="date", how="left").fillna({"gain": 0.0})
+        merged_tbl["payout_effectif"] = merged_tbl.apply(
+            lambda r: (r["gain"] / r["stake"]) if r["stake"] else 0.0, axis=1
+        )
+        st.subheader("Table des rounds: stake, payout, gain")
+        st.dataframe(
+            merged_tbl[["date", "stake", "payout_effectif", "gain"]], width="stretch"
+        )
+        # Graphe: gain cumulé
+        merged_tbl["gain_cum"] = merged_tbl["gain"].cumsum()
+        st.subheader("Gain cumulé")
+        st.line_chart(merged_tbl.set_index("date")["gain_cum"])
         try:
             st.caption(
-                f"Période: {gains['date'].min()} → {gains['date'].max()} • {len(gains)} jours (1 point/jour)"
+                f"Période: {merged_tbl['date'].min()} → {merged_tbl['date'].max()} • {len(merged_tbl)} jours (1 point/jour)"
             )
         except Exception:
             pass
@@ -510,11 +521,24 @@ def ui_gain():
         gains_sum = full_cal.merge(gains_sum, on="date", how="left").fillna(
             {"gain": 0.0}
         )
-        st.subheader("Gain quotidien agrégé (tous modèles)")
-        st.line_chart(gains_sum.set_index("date")["gain"])
+        # Table par round agrégée: stake total, payout effectif (gain/stake), gain
+        merged_tbl = ts_all.merge(gains_sum, on="date", how="left").fillna(
+            {"gain": 0.0}
+        )
+        merged_tbl["payout_effectif"] = merged_tbl.apply(
+            lambda r: (r["gain"] / r["stake"]) if r["stake"] else 0.0, axis=1
+        )
+        st.subheader("Table des rounds (agrégée): stake total, payout, gain")
+        st.dataframe(
+            merged_tbl[["date", "stake", "payout_effectif", "gain"]], width="stretch"
+        )
+        # Graphe: gain cumulé agrégé
+        merged_tbl["gain_cum"] = merged_tbl["gain"].cumsum()
+        st.subheader("Gain cumulé (tous modèles)")
+        st.line_chart(merged_tbl.set_index("date")["gain_cum"])
         try:
             st.caption(
-                f"Période: {gains_sum['date'].min()} → {gains_sum['date'].max()} • {len(gains_sum)} jours (1 point/jour)"
+                f"Période: {merged_tbl['date'].min()} → {merged_tbl['date'].max()} • {len(merged_tbl)} jours (1 point/jour)"
             )
         except Exception:
             pass
