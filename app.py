@@ -292,6 +292,85 @@ def ui_models_performance():
     except Exception:
         pass
 
+    # ================== Gains 1 NMR dans le temps (par modèle) ==================
+    try:
+        if "modelName" in df_wide.columns:
+            models_avail = sorted(df_wide["modelName"].dropna().unique().tolist())
+        else:
+            models_avail = []
+    except Exception:
+        models_avail = []
+    if models_avail:
+        st.subheader("Gains 1 NMR dans le temps (settled vs tous)")
+        model_sel = st.selectbox(
+            "Modèle",
+            options=models_avail,
+            key="perf_model_timeseries_select",
+        )
+        df_m = df_wide[df_wide.get("modelName") == model_sel].copy()
+        if df_m is None or df_m.empty:
+            st.info("Aucune donnée pour ce modèle.")
+            return
+        # S'assurer que payout est calculé
+        if ("payout" not in df_m.columns) and {
+            "roundPayoutFactor",
+            "season_score",
+        }.issubset(df_m.columns):
+            df_m["payout"] = df_m["roundPayoutFactor"] * df_m["season_score"]
+        # Dates des rounds
+        if "roundDate" in df_m.columns:
+            df_m["roundDate"] = pd.to_datetime(
+                df_m["roundDate"], errors="coerce"
+            ).dt.date
+        else:
+            st.info("roundDate manquant: impossible d'afficher la série temporelle.")
+            return
+        # Agrégations par date
+        grp_all = (
+            df_m.groupby("roundDate", as_index=False)
+            .agg(payout=("payout", "sum"))
+            .sort_values(by="roundDate")
+        )
+        grp_all.rename(columns={"payout": "Tous rounds"}, inplace=True)
+        # Résolus uniquement
+        if "roundResolveTime" in df_m.columns:
+            rt = pd.to_datetime(df_m["roundResolveTime"], errors="coerce")
+            mask_resolved = rt.notna() & (rt.dt.date < date.today())
+            df_m_set = df_m[mask_resolved]
+        else:
+            df_m_set = df_m.iloc[0:0]
+        grp_set = (
+            df_m_set.groupby("roundDate", as_index=False)
+            .agg(payout=("payout", "sum"))
+            .sort_values(by="roundDate")
+            if not df_m_set.empty
+            else pd.DataFrame({"roundDate": [], "payout": []})
+        )
+        if not grp_set.empty:
+            grp_set.rename(columns={"payout": "Résolus"}, inplace=True)
+        else:
+            grp_set = pd.DataFrame({"roundDate": grp_all["roundDate"], "Résolus": 0.0})
+        # Cumuls et merge
+        grp_all["Tous rounds"] = grp_all["Tous rounds"].cumsum()
+        grp_set["Résolus"] = grp_set["Résolus"].cumsum()
+        ts_model = pd.merge(
+            grp_all[["roundDate", "Tous rounds"]],
+            grp_set[["roundDate", "Résolus"]],
+            on="roundDate",
+            how="outer",
+        ).sort_values(by="roundDate")
+        ts_model[["Tous rounds", "Résolus"]] = (
+            ts_model[["Tous rounds", "Résolus"]].ffill().fillna(0.0)
+        )
+        # Affichage
+        st.line_chart(ts_model.set_index("roundDate")[["Tous rounds", "Résolus"]])
+        try:
+            st.caption(
+                f"Période: {ts_model['roundDate'].min()} → {ts_model['roundDate'].max()} • {len(ts_model)} points (par round)"
+            )
+        except Exception:
+            pass
+
 
 # ====================== Vue: Gain (évolution des stakes) ======================
 
