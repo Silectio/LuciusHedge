@@ -1,3 +1,4 @@
 .streamlit
 *.pyc
 __pycache__/
+*exemple.py
