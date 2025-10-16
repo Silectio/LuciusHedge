@@ -589,3 +589,202 @@ __all__ = [
     "rename_column",
     "alter_column_type",
 ]
+
+# ========================= Domain: Investors & Stakes =========================
+
+# Noms de tables
+INVESTORS_TABLE = "investors"
+STAKES_TABLE = "stakes"
+
+
+def ensure_investment_tables() -> None:
+    """Crée les tables `investors` et `stakes` si elles n'existent pas."""
+    # investors: id (PK autoincrement), name, email, notes, created_at
+    create_table(
+        INVESTORS_TABLE,
+        columns={
+            "id": Integer(),  # PK auto-incrément
+            "name": "varchar(255)",
+            "email": "varchar(255)",
+            "notes": "text",
+            "created_at": "timestamp",
+        },
+        primary_key=["id"],
+        uniques=[["email"]],
+        indexes=[{"columns": ["email"], "unique": True}],
+        if_not_exists=True,
+    )
+
+    # stakes: id (PK autoincrement), investor_id, amount, start_date, end_date
+    # NB: Pas de contrainte FK via create_table utilitaire, mais index sur investor_id
+    create_table(
+        STAKES_TABLE,
+        columns={
+            "id": Integer(),
+            "investor_id": "integer",
+            "amount": "numeric(20,6)",
+            "start_date": "timestamp",
+            "end_date": "timestamp",
+            "model_name": "varchar(255)",
+            "notes": "text",
+            "created_at": "timestamp",
+            "updated_at": "timestamp",
+        },
+        primary_key=["id"],
+        indexes=[
+            {"columns": ["investor_id"], "unique": False},
+            {"columns": ["model_name"], "unique": False},
+        ],
+        if_not_exists=True,
+    )
+
+    # Migration douce si la table existe déjà sans la colonne model_name
+    try:
+        if not _column_exists(STAKES_TABLE, "model_name"):
+            add_column(STAKES_TABLE, "model_name", "varchar(255)", nullable=True)
+            try:
+                execute_sql(
+                    'CREATE INDEX IF NOT EXISTS "ix_stakes_model_name" ON "stakes" ("model_name")'
+                )
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+# ------------------------- Investors CRUD -------------------------
+
+
+def add_investor(
+    name: str, email: Optional[str] = None, notes: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    """Ajoute un investisseur et retourne la ligne insérée."""
+    ensure_investment_tables()
+    data: Dict[str, Any] = {"name": name}
+    if email:
+        data["email"] = email
+    if notes:
+        data["notes"] = notes
+    return insert_row(INVESTORS_TABLE, data, returning=True)
+
+
+def get_investors(
+    where: WhereType = None, order_by: Optional[Union[str, Sequence[str]]] = ("id",)
+) -> List[Dict[str, Any]]:
+    ensure_investment_tables()
+    return fetch_rows(INVESTORS_TABLE, where=where, order_by=order_by)
+
+
+def get_investor_by_id(investor_id: int) -> Optional[Dict[str, Any]]:
+    rows = get_investors(
+        where={"id": investor_id},
+        order_by=None,
+    )
+    return rows[0] if rows else None
+
+
+def update_investor(
+    investor_id: int, values: Mapping[str, Any]
+) -> Union[int, List[Dict[str, Any]]]:
+    ensure_investment_tables()
+    # Nettoyer clés interdites
+    values = {k: v for k, v in dict(values).items() if k in {"name", "email", "notes"}}
+    if not values:
+        return 0
+    return update_rows(
+        INVESTORS_TABLE, where={"id": investor_id}, values=values, returning=True
+    )
+
+
+def delete_investor(investor_id: int) -> Union[int, List[Dict[str, Any]]]:
+    ensure_investment_tables()
+    # Supprimer d'abord les stakes liés pour éviter orphelins
+    delete_rows(STAKES_TABLE, where={"investor_id": investor_id})
+    return delete_rows(INVESTORS_TABLE, where={"id": investor_id}, returning=True)
+
+
+# ------------------------- Stakes CRUD -------------------------
+
+
+def add_stake(
+    investor_id: int,
+    amount: Union[int, float],
+    start_date: Any,  # datetime/date/str accepté par SQLAlchemy
+    end_date: Optional[Any] = None,
+    model_name: Optional[str] = None,
+    notes: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Ajoute un stake pour un investisseur."""
+    ensure_investment_tables()
+    data: Dict[str, Any] = {
+        "investor_id": investor_id,
+        "amount": amount,
+        "start_date": start_date,
+    }
+    if end_date is not None:
+        data["end_date"] = end_date
+    if model_name:
+        data["model_name"] = model_name
+    if notes:
+        data["notes"] = notes
+    return insert_row(STAKES_TABLE, data, returning=True)
+
+
+def get_stakes(
+    investor_id: Optional[int] = None,
+    model_name: Optional[str] = None,
+    order_by: Optional[Union[str, Sequence[str]]] = ("start_date desc",),
+) -> List[Dict[str, Any]]:
+    ensure_investment_tables()
+    if investor_id is not None and model_name is not None:
+        where: WhereType = {"investor_id": investor_id, "model_name": model_name}
+    elif investor_id is not None:
+        where = {"investor_id": investor_id}
+    elif model_name is not None:
+        where = {"model_name": model_name}
+    else:
+        where = None
+    return fetch_rows(STAKES_TABLE, where=where, order_by=order_by)
+
+
+def get_stake_by_id(stake_id: int) -> Optional[Dict[str, Any]]:
+    rows = fetch_rows(STAKES_TABLE, where={"id": stake_id}, limit=1)
+    return rows[0] if rows else None
+
+
+def update_stake(
+    stake_id: int, values: Mapping[str, Any]
+) -> Union[int, List[Dict[str, Any]]]:
+    ensure_investment_tables()
+    allowed = {"investor_id", "amount", "start_date", "end_date", "model_name", "notes"}
+    values = {k: v for k, v in dict(values).items() if k in allowed}
+    if not values:
+        return 0
+    return update_rows(
+        STAKES_TABLE, where={"id": stake_id}, values=values, returning=True
+    )
+
+
+def delete_stake(stake_id: int) -> Union[int, List[Dict[str, Any]]]:
+    ensure_investment_tables()
+    return delete_rows(STAKES_TABLE, where={"id": stake_id}, returning=True)
+
+
+__all__ += [
+    # Domain
+    "INVESTORS_TABLE",
+    "STAKES_TABLE",
+    "ensure_investment_tables",
+    # Investors
+    "add_investor",
+    "get_investors",
+    "get_investor_by_id",
+    "update_investor",
+    "delete_investor",
+    # Stakes
+    "add_stake",
+    "get_stakes",
+    "get_stake_by_id",
+    "update_stake",
+    "delete_stake",
+]
