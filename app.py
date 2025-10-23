@@ -884,7 +884,7 @@ def main():
     addr = "0x00000000000000000000000000000000000307ad"
     # Affiche l'adresse
     st.sidebar.markdown(f"```text\n{addr}\n```")
-    st.sidebar.image("QRCodeWallet.png", caption="QR Wallet", use_column_width=True)
+    st.sidebar.image("QRCodeWallet.png", caption="QR Wallet", use_container_width=True)
     # Auth facultative: protège uniquement les sections Admin (Investisseurs/Stakes)
     password = st.sidebar.text_input("Mot de passe (Admin)", type="password")
     try:
