@@ -882,34 +882,8 @@ def main():
     st.title("Lucius Hedge: Suivi des performances")
     st.sidebar.subheader("NMR Wallet : ")
     addr = "0x00000000000000000000000000000000000307ad"
-    # Affiche l'adresse et un bouton qui la copie dans le clipboard via JS
-    st.sidebar.markdown(
-        f"""
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-family:monospace;background:#f3f4f6;padding:6px 8px;border-radius:4px;">{addr}</span>
-          <button id="copy_addr_btn" style="padding:6px 8px;border-radius:4px;border:1px solid #ccc;cursor:pointer;">
-            Copier
-          </button>
-        </div>
-        <script>
-        const btn = document.getElementById("copy_addr_btn");
-        if (btn) {{
-          btn.addEventListener("click", async () => {{
-            try {{
-              await navigator.clipboard.writeText("{addr}");
-              const prev = btn.innerText;
-              btn.innerText = "Copié !";
-              setTimeout(() => btn.innerText = prev, 1500);
-            }} catch (e) {{
-              // fallback: ouvrir une boîte pour permettre la copie manuelle
-              window.prompt("Copiez l'adresse ci-dessous :", "{addr}");
-            }}
-          }});
-        }}
-        </script>
-        """,
-        unsafe_allow_html=True,
-    )
+    # Affiche l'adresse
+    st.sidebar.markdown(f"[{addr}](https://etherscan.io/address/{addr})")
     # Auth facultative: protège uniquement les sections Admin (Investisseurs/Stakes)
     password = st.sidebar.text_input("Mot de passe (Admin)", type="password")
     try:
